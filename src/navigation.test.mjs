@@ -87,6 +87,17 @@ test('reset collapses old history, and stale Forward never restores an old bill 
   assert.equal(host.history.leftSite, true);
 });
 
+test('switching an editor in place lets Back cancel editing rather than reopen another item', () => {
+  const host = browser();
+  let view;
+  const nav = createNavigation(host, (next) => { view = next; });
+  nav.to(screen(1));
+  nav.to(screen(1, { editing: 'pizza' }));
+  nav.replace(screen(1, { editing: 'pasta' }));
+  host.history.back();
+  assert.deepEqual(view, screen(1));
+});
+
 test('reload retains usable navigation; Forward is validated against the latest bill', () => {
   const host = browser();
   let view;

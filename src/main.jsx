@@ -81,6 +81,11 @@ function App() {
 
   function navigate(updates) { navigation.current.to({ ...view, ...updates }); }
   function go(next) { navigation.current.to({ ...tableView(), step: next }); }
+  function openControl(updates) {
+    const next = { ...tableView(), step, ...updates };
+    if (editing || details.length || shareOpen) navigation.current.replace(next);
+    else navigation.current.to(next);
+  }
   function toggleDetails(id) {
     const next = { ...view, details: details.includes(id) ? [] : [id] };
     // Switching an open breakdown is still one dismissible control.
@@ -161,7 +166,7 @@ function App() {
           </>}
           {step === 1 && <>
             <div className="card items-card"><div className="card-top"><span className="section-label"><ReceiptText size={17}/> THE ITEMS</span><span className="count-badge">{bill.items.length} items</span></div>
-              {bill.items.map((item) => <div className="bill-item" key={item.id}><div><strong>{item.name}</strong><button className="text-button" aria-label={`Edit ${item.name}`} onClick={() => navigate({ editing: item.id })}>Edit</button></div><span className="amount">{money(item.cents)}</span><button className="icon-button" aria-label={`Delete ${item.name}`} onClick={() => { patch({ items: bill.items.filter((i) => i.id !== item.id) }); if (editing === item.id) navigate({ editing: null }); }}><Trash2 size={16}/></button></div>)}
+              {bill.items.map((item) => <div className="bill-item" key={item.id}><div><strong>{item.name}</strong><button className="text-button" aria-label={`Edit ${item.name}`} onClick={() => openControl({ editing: item.id })}>Edit</button></div><span className="amount">{money(item.cents)}</span><button className="icon-button" aria-label={`Delete ${item.name}`} onClick={() => { patch({ items: bill.items.filter((i) => i.id !== item.id) }); if (editing === item.id) navigate({ editing: null }); }}><Trash2 size={16}/></button></div>)}
               <form onSubmit={addItem} className="item-form"><div><label htmlFor="item">Item name</label><input id="item" ref={itemInput} value={itemName} maxLength={60} placeholder="e.g. Margherita pizza" onChange={(e) => { setItemName(e.target.value); setError(''); }}/></div><div><label htmlFor="price">Line total</label><input id="price" inputMode="decimal" value={itemPrice} placeholder="0.00" onChange={(e) => { setItemPrice(e.target.value); setError(''); }}/></div><button type="submit" className="secondary-button"><Plus size={17}/>{editing ? 'Save item' : 'Add item'}</button>{editing && <button type="button" className="text-button" onClick={() => navigate({ editing: null })}>Cancel edit</button>}</form>
               <div className="subtotal-row"><span>Food & drinks</span><strong>{money(subtotal)}</strong></div>
             </div>

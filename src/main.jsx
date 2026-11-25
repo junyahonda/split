@@ -32,6 +32,21 @@ function App() {
   const money = (cents) => new Intl.NumberFormat(undefined, { style: 'currency', currency: bill.currency }).format(cents / 100);
   const patch = (values) => { setBill((old) => ({ ...old, ...values })); setError(''); setNotice(''); };
   useEffect(() => { try { localStorage.setItem(STORAGE, JSON.stringify(bill)); setStorageOk(true); } catch { setStorageOk(false); } }, [bill]);
+  useEffect(() => {
+    function syncDraft(event) {
+      if (event.key !== STORAGE && event.key !== null) return;
+      try {
+        const incoming = event.newValue ? JSON.parse(event.newValue) : blankBill();
+        if (!validDraft(incoming)) return;
+        setBill(incoming);
+        setStep(0); setPersonName(''); setItemName(''); setItemPrice(''); setEditing(null);
+        setShareText(''); setError(''); setResetOpen(false);
+        setNotice('This bill was updated in another tab. You’re seeing the latest version.');
+      } catch { /* Ignore invalid drafts from another tab. */ }
+    }
+    window.addEventListener('storage', syncDraft);
+    return () => window.removeEventListener('storage', syncDraft);
+  }, []);
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); heading.current?.focus(); }, [step]);
 
   function go(next) { setError(''); setNotice(''); setStep(next); }

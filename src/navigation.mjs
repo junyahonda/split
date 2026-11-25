@@ -56,9 +56,11 @@ export function createNavigation(host, onChange, normalize = (view) => view) {
     // and traverse back to the new bill's root instead of turning it into a
     // second empty table (which would consume an extra Back press). Its trail
     // also handles jumping several entries ahead via the browser history menu.
-    if (incoming && incoming.id !== entry.id) {
+    // Always accept a root: after a fresh load on an expired step, Back must
+    // reach the newer bill's root rather than skip it (or traverse out of range).
+    if (incoming && incoming.id !== entry.id && incoming.trail.length > 1) {
       busy = true;
-      host.history.go(-Math.max(1, incoming.trail.length - 1));
+      host.history.go(1 - incoming.trail.length);
       return;
     }
     if (!incoming) {

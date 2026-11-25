@@ -150,6 +150,36 @@ test('a reset from an earlier step collapses a remaining Forward branch, includi
   assert.equal(host.history.leftSite, true);
 });
 
+test('a fresh load on an expired step can Back to the newer root and keep navigating', () => {
+  for (const previousSite of [true, false]) {
+    const host = browser(previousSite);
+    let view;
+    let maxStep = 3;
+    const normalize = (next) => ({ ...next, step: Math.min(next.step, maxStep) });
+    let nav = createNavigation(host, (next) => { view = next; }, normalize);
+    [1, 2, 3].forEach((step) => nav.to(screen(step)));
+    nav.reset();
+    const fresh = host.history.state;
+    nav.destroy();
+    // Session restore / a fresh document can initialize on an expired entry
+    // without the old document's popstate listener having bounced it back.
+    host.history.forward();
+    maxStep = 0;
+    nav = createNavigation(host, (next) => { view = next; }, normalize);
+    host.history.back();
+    assert.deepEqual(host.history.state, fresh, 'the newer root is not skipped');
+    assert.deepEqual(view, screen(0));
+    assert.equal(host.history.leftSite, false);
+    maxStep = 3;
+    nav.to(screen(1));
+    assert.deepEqual(view, screen(1), 'no out-of-range traversal leaves navigation busy');
+    host.history.back();
+    assert.deepEqual(view, screen(0));
+    assert.equal(host.history.canGoBack, previousSite);
+    nav.destroy();
+  }
+});
+
 test('switching an editor in place lets Back cancel editing rather than reopen another item', () => {
   const host = browser();
   let view;

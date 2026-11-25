@@ -52,8 +52,18 @@ export function createNavigation(host, onChange, normalize = (view) => view) {
       return;
     }
     const incoming = read(event.state);
-    // A previous bill's Forward entries must never reopen its old controls.
-    if (!incoming || incoming.id !== entry.id) {
+    // replaceState cannot remove Forward history. Leave an expired entry intact
+    // and traverse back to the new bill's root instead of turning it into a
+    // second empty table (which would consume an extra Back press). Its trail
+    // also handles jumping several entries ahead via the browser history menu.
+    // Always accept a root: after a fresh load on an expired step, Back must
+    // reach the newer bill's root rather than skip it (or traverse out of range).
+    if (incoming && incoming.id !== entry.id && incoming.trail.length > 1) {
+      busy = true;
+      host.history.go(1 - incoming.trail.length);
+      return;
+    }
+    if (!incoming) {
       entry.trail = [tableView()];
     } else {
       entry = { ...incoming, trail: incoming.trail.map(normalize) };

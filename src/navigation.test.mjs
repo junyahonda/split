@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createNavigation, limitView, tableView } from './navigation.mjs';
 
-function browser() {
-  const entries = [null, null]; // Arrived from another site.
-  let index = 1;
+function browser(previousSite = true) {
+  const root = Number(previousSite);
+  const entries = Array(root + 1).fill(null);
+  let index = root;
   const listeners = new Set();
   let sequence = 0;
   return {
@@ -18,11 +19,12 @@ function browser() {
       go(delta) {
         if (index + delta < 0 || index + delta >= entries.length) return;
         index += delta;
-        if (index) listeners.forEach((fn) => fn({ state: this.state }));
+        if (index >= root) listeners.forEach((fn) => fn({ state: this.state }));
       },
       back() { this.go(-1); },
       forward() { this.go(1); },
-      get leftSite() { return index === 0; },
+      get leftSite() { return previousSite && index === 0; },
+      get canGoBack() { return index > 0; },
     },
   };
 }
@@ -72,7 +74,7 @@ test('Back closes nested controls before changing steps; in-app Back does not cr
   assert.deepEqual(view, screen(0));
 });
 
-test('reset collapses old history, and stale Forward never restores an old bill view', () => {
+test('after New bill, stale Forward adds no empty table and one Back leaves the site', () => {
   const host = browser();
   let view;
   const nav = createNavigation(host, (next) => { view = next; });
@@ -80,11 +82,102 @@ test('reset collapses old history, and stale Forward never restores an old bill 
   nav.to(screen(3, { resetOpen: true }));
   nav.reset();
   assert.deepEqual(view, screen(0));
+  const fresh = host.history.state;
   host.history.forward();
   assert.deepEqual(view, screen(0));
-  host.history.back();
+  assert.deepEqual(host.history.state, fresh);
   host.history.back();
   assert.equal(host.history.leftSite, true);
+});
+
+test('expired Forward jumps and repeated resets return to the same new-bill root', () => {
+  const host = browser();
+  let view;
+  let changes = 0;
+  const nav = createNavigation(host, (next) => { view = next; changes++; });
+  for (let round = 0; round < 2; round++) {
+    [1, 2, 3].forEach((step) => nav.to(screen(step)));
+    nav.to(screen(3, { resetOpen: true }));
+    nav.reset();
+    const fresh = host.history.state;
+    for (const distance of [1, 3, 4, 1]) {
+      const before = changes;
+      host.history.go(distance);
+      assert.deepEqual(host.history.state, fresh);
+      assert.deepEqual(view, screen(0));
+      assert.equal(changes, before + 1, 'expired controls are never emitted');
+    }
+  }
+  host.history.back();
+  assert.equal(host.history.leftSite, true);
+  host.history.forward();
+  assert.deepEqual(view, screen(0));
+  nav.to(screen(1));
+  host.history.back();
+  assert.deepEqual(view, screen(0));
+  host.history.back();
+  assert.equal(host.history.leftSite, true);
+});
+
+test('reset and expired Forward preserve a predecessor-free app root', () => {
+  const host = browser(false);
+  let view;
+  const nav = createNavigation(host, (next) => { view = next; });
+  [1, 2, 3].forEach((step) => nav.to(screen(step)));
+  nav.to(screen(3, { resetOpen: true }));
+  nav.reset();
+  const fresh = host.history.state;
+  host.history.forward();
+  assert.deepEqual(host.history.state, fresh);
+  assert.deepEqual(view, screen(0));
+  assert.equal(host.history.canGoBack, false, 'no extra Back stop blocks native exit');
+});
+
+test('a reset from an earlier step collapses a remaining Forward branch, including after reload', () => {
+  const host = browser();
+  let view;
+  let nav = createNavigation(host, (next) => { view = next; });
+  [1, 2, 3].forEach((step) => nav.to(screen(step)));
+  nav.to(screen(1));
+  nav.reset(); // A draft update in another tab can reset without opening a dialog.
+  nav.destroy();
+  nav = createNavigation(host, (next) => { view = next; });
+  const fresh = host.history.state;
+  host.history.go(3);
+  assert.deepEqual(host.history.state, fresh);
+  assert.deepEqual(view, screen(0));
+  host.history.back();
+  assert.equal(host.history.leftSite, true);
+});
+
+test('a fresh load on an expired step can Back to the newer root and keep navigating', () => {
+  for (const previousSite of [true, false]) {
+    const host = browser(previousSite);
+    let view;
+    let maxStep = 3;
+    const normalize = (next) => ({ ...next, step: Math.min(next.step, maxStep) });
+    let nav = createNavigation(host, (next) => { view = next; }, normalize);
+    [1, 2, 3].forEach((step) => nav.to(screen(step)));
+    nav.reset();
+    const fresh = host.history.state;
+    nav.destroy();
+    // Session restore / a fresh document can initialize on an expired entry
+    // without the old document's popstate listener having bounced it back.
+    host.history.forward();
+    maxStep = 0;
+    nav = createNavigation(host, (next) => { view = next; }, normalize);
+    host.history.back();
+    assert.deepEqual(host.history.state, fresh, 'the newer root is not skipped');
+    assert.deepEqual(view, screen(0));
+    assert.equal(host.history.leftSite, false);
+    maxStep = 3;
+    nav.to(screen(1));
+    assert.deepEqual(view, screen(1), 'no out-of-range traversal leaves navigation busy');
+    host.history.back();
+    assert.deepEqual(view, screen(0));
+    assert.equal(host.history.canGoBack, previousSite);
+    nav.destroy();
+  }
 });
 
 test('switching an editor in place lets Back cancel editing rather than reopen another item', () => {

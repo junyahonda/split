@@ -32,6 +32,7 @@ function App() {
   const personInput = useRef(null);
   const itemInput = useRef(null);
   const errorAlert = useRef(null);
+  const pageActions = useRef(null);
   const navigation = useRef(null);
   const latestBill = useRef(bill);
   latestBill.current = bill;
@@ -79,6 +80,33 @@ function App() {
     errorAlert.current?.focus({ preventScroll: true });
     errorAlert.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
   }, [feedback]);
+  useEffect(() => {
+    if (step !== 1 || bill.tipMode !== 'amount') return;
+    let frame;
+    function revealActions() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        const input = document.activeElement;
+        if (input?.id !== 'tip' || !pageActions.current) return;
+        const viewport = window.visualViewport;
+        const top = viewport?.offsetTop || 0;
+        const bottom = top + (viewport?.height || window.innerHeight);
+        const overflow = pageActions.current.getBoundingClientRect().bottom - bottom + 12;
+        const room = input.getBoundingClientRect().top - top - 12;
+        // Keep the amount and next action visible together when the IME opens.
+        if (overflow > 0 && room > 0) window.scrollBy({ top: Math.min(overflow, room), behavior: 'instant' });
+      });
+    }
+    window.addEventListener('focusin', revealActions);
+    window.addEventListener('resize', revealActions);
+    window.visualViewport?.addEventListener('resize', revealActions);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener('focusin', revealActions);
+      window.removeEventListener('resize', revealActions);
+      window.visualViewport?.removeEventListener('resize', revealActions);
+    };
+  }, [step, bill.tipMode]);
 
   function navigate(updates) { navigation.current.to({ ...view, ...updates }); }
   function go(next) { navigation.current.to({ ...tableView(), step: next }); }
@@ -192,7 +220,7 @@ function App() {
           </>}
           {error && <div ref={errorAlert} className="error" role="alert" tabIndex={-1}>{error}</div>}
           {notice && <div className="notice" role="status">{notice}</div>}
-          {step < 3 && <div className="page-actions">{step > 0 && <button className="back-button" onClick={() => go(step - 1)} aria-label="Back"><ArrowLeft size={20}/></button>}<button className="primary-button" onClick={next}>{['Add the bill', 'Assign the items', 'See the split'][step]}<ArrowRight size={19}/></button></div>}
+          {step < 3 && <div ref={pageActions} className="page-actions">{step > 0 && <button className="back-button" onClick={() => go(step - 1)} aria-label="Back"><ArrowLeft size={20}/></button>}<button className="primary-button" onClick={next}>{['Add the bill', 'Assign the items', 'See the split'][step]}<ArrowRight size={19}/></button></div>}
           <div className="privacy-note"><ShieldCheck size={14}/>{storageOk ? 'Saved on this device. No accounts. No ads.' : 'Device storage unavailable. Keep this tab open.'}</div>
         </section>
       </main>

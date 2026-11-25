@@ -87,10 +87,8 @@ function App() {
     else navigation.current.to(next);
   }
   function toggleDetails(id) {
-    const next = { ...view, details: details.includes(id) ? [] : [id] };
-    // Switching an open breakdown is still one dismissible control.
-    if (details.length && next.details.length) navigation.current.replace(next);
-    else navigation.current.to(next);
+    if (details.includes(id)) navigate({ details: [] });
+    else openControl({ details: [id] });
   }
   function addPerson(event) {
     event.preventDefault();
@@ -133,7 +131,7 @@ function App() {
   const summary = result ? `${bill.title || 'Our bill'}\n\n${result.shares.map((p) => `${p.name}: ${money(p.total)} (food ${money(p.subtotal)} + tax ${money(p.tax)} + tip ${money(p.tip)})`).join('\n')}\n\nTotal: ${money(result.total)}\nSplit with https://split.junyahonda.com` : '';
   async function copySummary() {
     try { await navigator.clipboard.writeText(summary); setNotice('Copied! Paste it into your group chat.'); }
-    catch { navigate({ shareOpen: true }); setNotice('Select and copy the summary below.'); }
+    catch { openControl({ shareOpen: true }); setNotice('Select and copy the summary below.'); }
   }
   function reset() { const empty = blankBill(); latestBill.current = empty; setBill(empty); setPersonName(''); setItemName(''); setItemPrice(''); navigation.current.reset(); }
   return <>

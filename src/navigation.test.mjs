@@ -98,6 +98,21 @@ test('switching an editor in place lets Back cancel editing rather than reopen a
   assert.deepEqual(view, screen(1));
 });
 
+test('switching between breakdown and manual copy leaves just one dismissible control', () => {
+  const host = browser();
+  let view;
+  const nav = createNavigation(host, (next) => { view = next; });
+  [1, 2, 3].forEach((step) => nav.to(screen(step)));
+  nav.to(screen(3, { details: ['alex'] }));
+  nav.replace(screen(3, { shareOpen: true }));
+  assert.deepEqual(view.details, []);
+  nav.replace(screen(3, { details: ['bea'] }));
+  assert.equal(view.shareOpen, false);
+  nav.to(screen(3));
+  host.history.back();
+  assert.deepEqual(view, screen(2));
+});
+
 test('reload retains usable navigation; Forward is validated against the latest bill', () => {
   const host = browser();
   let view;

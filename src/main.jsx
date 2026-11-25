@@ -28,6 +28,7 @@ function App() {
   const heading = useRef(null);
   const personInput = useRef(null);
   const itemInput = useRef(null);
+  const errorAlert = useRef(null);
   const navigation = useRef(null);
   const latestBill = useRef(bill);
   latestBill.current = bill;
@@ -70,6 +71,11 @@ function App() {
     return () => window.removeEventListener('keydown', escape);
   }, [resetOpen]);
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); heading.current?.focus(); }, [step]);
+  useEffect(() => {
+    if (!error) return;
+    errorAlert.current?.focus({ preventScroll: true });
+    errorAlert.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }, [error]);
 
   function navigate(updates) { navigation.current.to({ ...view, ...updates }); }
   function go(next) { navigation.current.to({ ...tableView(), step: next }); }
@@ -98,6 +104,8 @@ function App() {
     event.preventDefault();
     const name = itemName.trim(); const cents = moneyInput(itemPrice);
     if (!name) return setError('Give this item a name.');
+    if (/^\d+(\.\d+)?$/.test(itemPrice.trim()) && Number(itemPrice) > 9999999.99) return setError(`Enter a line total no higher than ${money(999999999)}.`);
+    if (/^\d+\.\d{3,}$/.test(itemPrice.trim())) return setError('Use at most two decimal places for the item price.');
     if (cents === null || cents <= 0) return setError('Enter a price above zero, with up to two decimal places.');
     if (!editing && bill.items.length >= 200) return setError('You can add up to 200 items to a bill.');
     patch({ items: editing ? bill.items.map((i) => i.id === editing ? { ...i, name, cents } : i) : [...bill.items, { id: uid(), name, cents, people: [] }] });
@@ -138,7 +146,7 @@ function App() {
         <section className="page-content">
           <div className="page-heading">
             <span className="eyebrow">{['FIRST, YOUR PEOPLE', 'A LITTLE RECEIPT WORK', 'TAP. SHARE. REPEAT.', 'ALL SQUARED UP'][step]}</span>
-            <h1 ref={heading} tabIndex={-1}>{[<>Who’s at<br/>the table?</>, <>What’s on<br/>the bill?</>, <>Who had<br/>what?</>, <>Good times.<br/><span className="green-text">Fair shares.</span></>][step]}</h1>
+            <h1 ref={heading} tabIndex={-1}>{[<>Who’s at{' '}<br/>the table?</>, <>What’s on{' '}<br/>the bill?</>, <>Who had{' '}<br/>what?</>, <>Good times.{' '}<br/><span className="green-text">Fair shares.</span></>][step]}</h1>
             <p>{['Round up your people. We’ll handle the math.', 'Add each item, then the tax and tip.', 'Tap a name for each item. Shared something? Tap everyone who had it.', 'Just what you had, plus your share of tax and tip. Every cent accounted for.'][step]}</p>
           </div>
           {step === 0 && <>
@@ -155,7 +163,7 @@ function App() {
             <div className="card settings-card"><label htmlFor="title">Give the bill a name <span>optional</span></label><input id="title" value={bill.title} maxLength={60} onChange={(e) => patch({ title: e.target.value })} placeholder="Friday night dinner"/><div className="currency-row"><label htmlFor="currency">Currency</label><select id="currency" value={bill.currency} onChange={(e) => patch({ currency: e.target.value })}>{['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD'].map((c) => <option key={c} value={c}>{c}</option>)}</select></div></div>
           </>}
           {step === 1 && <>
-            <div className="card items-card"><div className="card-top"><span className="section-label"><ReceiptText size={17}/> THE ITEMS</span><span className="count-badge">{bill.items.length} items</span></div>
+            <div className="card items-card"><div className="card-top"><span className="section-label"><ReceiptText size={17}/> THE ITEMS</span><span className="count-badge">{bill.items.length} {bill.items.length === 1 ? 'item' : 'items'}</span></div>
               {bill.items.map((item) => <div className="bill-item" key={item.id}><div><strong>{item.name}</strong><button className="text-button" aria-label={`Edit ${item.name}`} onClick={() => openControl({ editing: item.id })}>Edit</button></div><span className="amount">{money(item.cents)}</span><button className="icon-button" aria-label={`Delete ${item.name}`} onClick={() => { patch({ items: bill.items.filter((i) => i.id !== item.id) }); if (editing === item.id) navigate({ editing: null }); }}><Trash2 size={16}/></button></div>)}
               <form onSubmit={addItem} className="item-form"><div><label htmlFor="item">Item name</label><input id="item" ref={itemInput} value={itemName} maxLength={60} placeholder="e.g. Margherita pizza" onChange={(e) => { setItemName(e.target.value); setError(''); }}/></div><div><label htmlFor="price">Line total</label><input id="price" inputMode="decimal" value={itemPrice} placeholder="0.00" onChange={(e) => { setItemPrice(e.target.value); setError(''); }}/></div><button type="submit" className="secondary-button"><Plus size={17}/>{editing ? 'Save item' : 'Add item'}</button>{editing && <button type="button" className="text-button" onClick={() => navigate({ editing: null })}>Cancel edit</button>}</form>
               <div className="subtotal-row"><span>Food & drinks</span><strong>{money(subtotal)}</strong></div>
@@ -171,7 +179,7 @@ function App() {
             <p className="small-note">Shared items are split equally among the selected people.</p>
           </>}
           {step === 3 && result && <>
-            <div className="receipt-total"><div className="receipt-total-top"><span><ReceiptText size={16}/>{bill.title || 'Your table’s total'}</span><span>{bill.currency}</span></div><div className="grand-total">{money(result.total)}</div><div className="receipt-meta"><span>{bill.people.length} people</span><span>•</span><span>{bill.items.length} items</span><span className="balanced"><Check size={13}/> Balanced to the cent</span></div></div>
+            <div className="receipt-total"><div className="receipt-total-top"><span><ReceiptText size={16}/>{bill.title || 'Your table’s total'}</span><span>{bill.currency}</span></div><div className="grand-total">{money(result.total)}</div><div className="receipt-meta"><span>{bill.people.length} people</span><span>•</span><span>{bill.items.length} {bill.items.length === 1 ? 'item' : 'items'}</span><span className="balanced"><Check size={13}/> Balanced to the cent</span></div></div>
             <div className="shares">{result.shares.map((person, index) => <details className="card share-card" key={person.id} open={details.includes(person.id)}><summary onClick={(event) => { event.preventDefault(); toggleDetails(person.id); }}><span className={`avatar color-${index % 5}`}>{person.name.slice(0, 1).toUpperCase()}</span><span className="share-name">{person.name}<small>{person.items.length} {person.items.length === 1 ? 'item' : 'items'}</small></span><strong>{money(person.total)}</strong><ChevronDown className="chevron" size={19}/></summary><div className="share-breakdown">{person.items.map((item, i) => <div key={i}><span>{item.name}{item.shared && <small> shared</small>}</span><span>{money(item.cents)}</span></div>)}<div className="breakdown-subtotal"><span>Food & drinks</span><span>{money(person.subtotal)}</span></div><div><span>Tax</span><span>{money(person.tax)}</span></div><div><span>Tip</span><span>{money(person.tip)}</span></div></div></details>)}</div>
             <div className="bill-totals"><div><span>Food & drinks</span><span>{money(result.subtotal)}</span></div><div><span>Tax</span><span>{money(result.tax)}</span></div><div><span>Tip{bill.tipMode === 'percent' ? ` (${bill.tip || '0'}%)` : ''}</span><span>{money(result.tip)}</span></div><div className="total-line"><strong>Total</strong><strong>{money(result.total)}</strong></div></div>
             <div className="fair-note"><ShieldCheck size={18}/><p>Fair down to the last cent.<small>Tax and tip follow each person’s food & drinks. Rounding pennies are distributed automatically.</small></p></div>
@@ -179,7 +187,7 @@ function App() {
             {shareOpen && <label className="share-fallback">Copy this summary<textarea readOnly value={summary} onFocus={(e) => e.target.select()}/></label>}
             <button className="edit-bill-button" onClick={() => go(1)}>Need to change something? Edit bill <ArrowRight size={15}/></button>
           </>}
-          {error && <div className="error" role="alert">{error}</div>}
+          {error && <div ref={errorAlert} className="error" role="alert" tabIndex={-1}>{error}</div>}
           {notice && <div className="notice" role="status">{notice}</div>}
           {step < 3 && <div className="page-actions">{step > 0 && <button className="back-button" onClick={() => go(step - 1)} aria-label="Back"><ArrowLeft size={20}/></button>}<button className="primary-button" onClick={next}>{['Add the bill', 'Assign the items', 'See the split'][step]}<ArrowRight size={19}/></button></div>}
           <div className="privacy-note"><ShieldCheck size={14}/>{storageOk ? 'Saved on this device. No accounts. No ads.' : 'Device storage unavailable. Keep this tab open.'}</div>

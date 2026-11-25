@@ -49,7 +49,7 @@ function App() {
   }, []);
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); heading.current?.focus(); }, [step]);
 
-  function go(next) { setError(''); setNotice(''); setStep(next); }
+  function go(next) { setError(''); setNotice(''); setShareText(''); setStep(next); }
   function addPerson(event) {
     event.preventDefault();
     const name = personName.trim();

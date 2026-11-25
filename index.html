@@ -2,16 +2,26 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#f6f7ef" />
     <meta name="description" content="Good food. Fair shares. Split restaurant items, tax, and tip with friends. No accounts, no ads." />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <title>Split — Good food. Fair shares.</title>
+    <style>
+      body{margin:0;background:#f6f7ef}
+      .boot-shell{max-width:520px;margin:auto;padding:32px 24px;color:#263928;font-family:system-ui,sans-serif}
+      .boot-brand{display:flex;align-items:center;gap:10px;font-size:30px;font-weight:800;letter-spacing:-1px;padding-bottom:24px;border-bottom:1px solid #e3e7db}
+      .boot-mark{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#d7fa72}
+      .boot-status{margin-top:64px;padding:28px;background:#fff;border:1px solid #e3e7db;border-radius:18px}
+      .boot-status h1{font-size:30px;line-height:1.2;margin:0 0 16px;letter-spacing:-1px}
+      .boot-status p{font-size:14px;line-height:1.6;margin:0;color:#6d7669}
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div class="boot-shell"><div class="boot-brand"><span class="boot-mark">#</span>split.</div><div class="boot-status" role="status"><h1>Getting the table ready…</h1><p>A fair share for everyone.<br />No accounts. No ads.</p></div></div></div>
+    <noscript><style>.boot-status{display:none}</style><p style="padding:24px;font-family:system-ui,sans-serif">Enable JavaScript in your browser to split your bill.</p></noscript>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

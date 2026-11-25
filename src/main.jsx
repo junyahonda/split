@@ -22,7 +22,10 @@ function App() {
   const [personName, setPersonName] = useState('');
   const [itemName, setItemName] = useState('');
   const [itemPrice, setItemPrice] = useState('');
-  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState({ message: '' });
+  const error = feedback.message;
+  // A fresh object also re-announces and reveals an unchanged retry error.
+  const setError = (message) => setFeedback({ message });
   const [notice, setNotice] = useState('');
   const [storageOk, setStorageOk] = useState(true);
   const heading = useRef(null);
@@ -75,7 +78,7 @@ function App() {
     if (!error) return;
     errorAlert.current?.focus({ preventScroll: true });
     errorAlert.current?.scrollIntoView({ block: 'center', behavior: 'instant' });
-  }, [error]);
+  }, [feedback]);
 
   function navigate(updates) { navigation.current.to({ ...view, ...updates }); }
   function go(next) { navigation.current.to({ ...tableView(), step: next }); }

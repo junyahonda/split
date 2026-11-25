@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNavigation, tableView } from './navigation.mjs';
+import { createNavigation, limitView, tableView } from './navigation.mjs';
 
 function browser() {
   const entries = [null, null]; // Arrived from another site.
@@ -129,4 +129,29 @@ test('reload retains usable navigation; Forward is validated against the latest 
   assert.equal(view.step, 1);
   host.history.forward();
   assert.equal(view.step, 1);
+});
+
+test('Forward cannot skip a typed person or item, and saved content remains reachable', () => {
+  const host = browser();
+  const bill = { people: [{ id: 'a' }, { id: 'b' }], items: [{ id: 'pizza', people: ['a'] }], tax: '', tip: '18', tipMode: 'percent' };
+  const inputs = { personName: '', itemName: '', itemPrice: '' };
+  let view;
+  const nav = createNavigation(host, (next) => { view = next; }, (next) => limitView(next, bill, inputs));
+  [1, 2, 3].forEach((step) => nav.to(screen(step)));
+  nav.to(screen(0));
+  inputs.personName = 'Cam';
+  host.history.forward();
+  assert.equal(view.step, 0);
+  inputs.personName = '';
+  nav.to(screen(1));
+  inputs.itemName = 'Fries';
+  host.history.forward();
+  assert.equal(view.step, 1);
+  inputs.itemName = '';
+  inputs.itemPrice = '9';
+  assert.equal(limitView(screen(3), bill, inputs).step, 1);
+  inputs.itemPrice = '';
+  nav.to(screen(2));
+  nav.to(screen(3));
+  assert.equal(view.step, 3);
 });

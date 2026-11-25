@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { ArrowLeft, ArrowRight, Check, ChevronDown, CircleCheck, Copy, Hash, Leaf, Plus, ReceiptText, RotateCcw, ShieldCheck, Sparkles, Trash2, Users, X } from 'lucide-react';
 import { calculate, moneyInput, percentage, validDraft } from './split.mjs';
-import { createNavigation, tableView } from './navigation.mjs';
+import { createNavigation, limitView, tableView } from './navigation.mjs';
 import './style.css';
 
 const STORAGE = 'split.bill.v1';
@@ -31,22 +31,14 @@ function App() {
   const navigation = useRef(null);
   const latestBill = useRef(bill);
   latestBill.current = bill;
+  const latestInputs = useRef(null);
+  latestInputs.current = { personName, itemName, itemPrice };
   const money = (cents) => new Intl.NumberFormat(undefined, { style: 'currency', currency: bill.currency }).format(cents / 100);
   const patch = (values) => { setBill((old) => ({ ...old, ...values })); setError(''); setNotice(''); };
   useEffect(() => {
     navigation.current = createNavigation(window, (next) => {
       setView(next); setError(''); setNotice('');
-    }, (next) => {
-      const current = latestBill.current;
-      const extrasValid = (current.tax === '' || moneyInput(current.tax) !== null)
-        && (current.tip === '' || (current.tipMode === 'percent' ? percentage(current.tip) : moneyInput(current.tip)) !== null);
-      const maxStep = current.people.length < 2 ? 0 : !current.items.length || !extrasValid ? 1
-        : current.items.some((item) => !item.people.length) ? 2 : 3;
-      const step = Math.min(next.step, maxStep);
-      return { ...next, step, editing: step === 1 && current.items.some((item) => item.id === next.editing) ? next.editing : null,
-        details: step === 3 ? next.details.filter((id) => current.people.some((person) => person.id === id)) : [],
-        shareOpen: step === 3 && next.shareOpen };
-    });
+    }, (next) => limitView(next, latestBill.current, latestInputs.current));
     return () => navigation.current.destroy();
   }, []);
   useEffect(() => { try { localStorage.setItem(STORAGE, JSON.stringify(bill)); setStorageOk(true); } catch { setStorageOk(false); } }, [bill]);

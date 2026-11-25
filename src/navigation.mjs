@@ -1,4 +1,18 @@
+import { moneyInput, percentage } from './split.mjs';
+
 export const tableView = () => ({ step: 0, resetOpen: false, editing: null, details: [], shareOpen: false });
+
+export function limitView(view, bill, inputs) {
+  const extrasValid = (bill.tax === '' || moneyInput(bill.tax) !== null)
+    && (bill.tip === '' || (bill.tipMode === 'percent' ? percentage(bill.tip) : moneyInput(bill.tip)) !== null);
+  const maxStep = bill.people.length < 2 || inputs.personName.trim() ? 0
+    : !bill.items.length || !extrasValid || inputs.itemName.trim() || inputs.itemPrice ? 1
+    : bill.items.some((item) => !item.people.length) ? 2 : 3;
+  const step = Math.min(view.step, maxStep);
+  return { ...view, step, editing: step === 1 && bill.items.some((item) => item.id === view.editing) ? view.editing : null,
+    details: step === 3 ? view.details.filter((id) => bill.people.some((person) => person.id === id)) : [],
+    shareOpen: step === 3 && view.shareOpen };
+}
 
 const validView = (view) => view && Number.isInteger(view.step) && view.step >= 0 && view.step <= 3
   && typeof view.resetOpen === 'boolean' && (view.editing === null || typeof view.editing === 'string')
